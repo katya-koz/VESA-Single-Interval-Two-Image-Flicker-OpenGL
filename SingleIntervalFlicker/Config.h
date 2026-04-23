@@ -21,7 +21,8 @@ struct Config {
     std::string participantID;
     std::string participantAge;
     std::string participantGender;
-    fs::path imageDirectory;
+    fs::path origImageDirectory;
+    fs::path condImageDirectory;
     std::vector<ImagePaths> trials;
     fs::path outputDirectory;
     // defaults
@@ -40,5 +41,5 @@ struct Config {
 private:
     // searches the provided imageDirectory for a file named "<name><suffix>.*" (any extension).
     //returns the matched path (or empty if not found)
-    fs::path findImage(const std::string& name, const std::string& suffix) const;
+    fs::path findImage(const std::string& name, const std::string& suffix, const fs::path imageDirectory) const;
 };

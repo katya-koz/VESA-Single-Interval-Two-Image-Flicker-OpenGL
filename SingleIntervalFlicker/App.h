@@ -11,12 +11,22 @@
 // Each trial steps through these phases in order
 enum class TrialPhase {
     StartInstructions, // starting instructions
-    ShowOriginal,// show L_orig for timeoutDuration
-    ShowFlicker, // show flicker for timeoutDuration
+    ShowImages, // show images side by side (flicker and original)
     WaitForResponse, // black screen — waiting for left/right arrow key
-    ShowWaitScreen, // black screen between images
     Done  // all trials are complete
 };
+
+struct Texture {
+    GLuint id = 0;
+    int width;
+    int height;
+};
+
+struct QuadMesh {
+    GLuint vao, vbo;
+};
+
+
 
 // result recorded for each trial
 struct TrialResult {
@@ -30,10 +40,10 @@ struct TrialResult {
 
 class App {
 public:
-    App(int variant);
+    App();
     ~App();
 
-    
+
 
     bool init(const std::string& configPath);
     void run();
@@ -51,14 +61,13 @@ public:
 private:
     int m_width;
     int m_height;
-    int m_variant;
-    
+
     std::string m_title;
     GLFWwindow* m_window = nullptr;
     Config m_config;
 
     int  m_trialIndex = 0;
-    TrialPhase m_phase = TrialPhase::ShowOriginal;
+    TrialPhase m_phase = TrialPhase::StartInstructions;
     double m_phaseStart = 0.0;
     double m_responseStart = 0.0;
     double m_flickerLast = 0.0;   // glfwGetTime() of last swap
@@ -67,33 +76,33 @@ private:
 
     std::vector<TrialResult> m_results;
 
-    //GLuint m_texture_L = 0; // current texture on screen (left)
-    //GLuint m_texture_R = 0;
+    //Texture m_texture_L = 0; // current texture on screen (left)
+    //Texture m_texture_R = 0;
 
     // need to load original and decompressed in order to flicker between them (without re-loading the images in every update tick)
-    GLuint m_texOrig_L = 0;
-    GLuint m_texDec_L = 0;
-    GLuint m_texOrig_R = 0;
-    GLuint m_texDec_R = 0;
+    Texture m_texOrig_L;
+    Texture m_texDec_L;
+    Texture m_texOrig_R;
+    Texture m_texDec_R;
     // double up, later for stereo mode.
 
     // for instrucitons
-    GLuint m_texStart_L = 0;
-    GLuint m_texWaitResponse_L = 0;
-    GLuint m_texStart_R = 0;
-    GLuint m_texWaitResponse_R = 0;
+    Texture m_texStart_L;
+    Texture m_texWaitResponse_L;
+    Texture m_texStart_R;
+    Texture m_texWaitResponse_R;
 
     // crosshair (fixation point)
-    GLuint m_crosshairVAO = 0;
-    GLuint m_crosshairVBO = 0;
+    GLuint m_crosshairVAO;
+    GLuint m_crosshairVBO;
     Shader m_crosshairShader;
 
 
-    GLuint m_quadVAO = 0;
-    GLuint m_quadVBO = 0;
     Shader m_shader;
-    Shader m_fovealShader;
-    Shader m_localShader;
+    QuadMesh m_quadFull; // fulscreen
+    QuadMesh m_quadIMG0, m_quadIMG1; // for side by side images
+    //Shader m_fovealShader;
+    //Shader m_localShader;
 
     //GLPBO m_pboOrig_L
     //m_pboOrig_R
@@ -101,13 +110,16 @@ private:
     //m_pboDec_R
 
     CSV m_csv;
-
+    bool m_prevGamepadA = false;
+    bool m_prevGamepadLeft = false;
+    bool m_prevGamepadRight = false;
     void update();
     void render();
+    void pollGamepad();
+    void renderFlickerLayer(Texture origL, Texture origR, Texture decL, Texture decR);
 
-    void renderFlickerLayer(GLuint origL, GLuint origR, GLuint decL, GLuint decR);
-
-    bool initQuad();
+    bool initQuads(int texW, int texH);
+    QuadMesh makeQuad(int x, int y, int w, int h);
     bool initCrosshair();
     void advancePhase();
     void loadInstructionsTextures(); // load the response screen and instructions
@@ -116,16 +128,16 @@ private:
     void loadTextures(const ImagePaths paths);
     bool loadShaders();
     void initWindow();
-    void loadTexture(const std::string& path, GLuint textureID);
-    void renderTexture(GLuint texL, GLuint texR);
-    void renderFovealTexture(GLuint texL, GLuint texR);
-    void renderLocalTexture(GLuint texL, GLuint texR);
+    void loadTexture(const std::string& path, Texture& textureID);
+    void renderFlickerTexture(Texture texL, Texture texR, int imageIndex); // imageIndex indicates: 0 = left image, 1 = right image
+    void renderTexture(Texture texL, Texture texR);
+    void renderTexture(Texture texL0, Texture texR0, Texture texL1, Texture texR1);
+   
     void renderCrosshair();
     void recordResponse(int key);
 
     static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
-    void updateLocalFlickerShader();
+
     void updateImageShader();
-    void updateFovealFlickerShader();
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 };

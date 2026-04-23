@@ -26,7 +26,8 @@ bool Config::load(const std::string& configPath) {
     participantID = j.at("Participant ID").get<std::string>();
     participantAge = std::to_string(j.at("Participant Age").get<int>());
     participantGender = j.at("Participant Gender").get<std::string>();
-    imageDirectory = j.at("Image Directory").get<std::string>();
+    origImageDirectory = j.at("Reference Image Directory").get<std::string>();
+    condImageDirectory = j.at("Condition Image Directory").get<std::string>();
 
     // optional parameters
     if (j.contains("Output Directory")) {
@@ -59,8 +60,14 @@ bool Config::load(const std::string& configPath) {
     //    viewingDistanceMeters = j["Physical Viewing Distance (meters)"].get<float>();
     //}
 
-    if (!fs::exists(imageDirectory) || !fs::is_directory(imageDirectory)) {
-        std::string msg = "[Config] Image directory not found: " + imageDirectory.string() + "";
+    if (!fs::exists(origImageDirectory) || !fs::is_directory(origImageDirectory)) {
+        std::string msg = "[Config] Image directory not found: " + origImageDirectory.string() + "";
+        Utils::FatalError(msg);
+        return false;
+    }
+
+    if (!fs::exists(condImageDirectory) || !fs::is_directory(condImageDirectory)) {
+        std::string msg = "[Config] Image directory not found: " + condImageDirectory.string() + "";
         Utils::FatalError(msg);
         return false;
     }
@@ -75,10 +82,10 @@ bool Config::load(const std::string& configPath) {
         img.viewingMode = viewingMode;
 
         img.name = name;
-        img.L_orig = findImage(name, "_L_orig");
-        img.L_dec = findImage(name, "_L_dec");
-        img.R_orig = findImage(name, "_R_orig");
-        img.R_dec = findImage(name, "_R_dec");
+        img.L_orig = findImage(name, "_L", origImageDirectory);
+        img.L_dec = findImage(name, "_L", condImageDirectory);
+        img.R_orig = findImage(name, "_R", origImageDirectory);
+        img.R_dec = findImage(name, "_R", condImageDirectory);
         std::string msg;
         // Warn about any missing permutations
         auto warn = [&](const fs::path& p, const std::string& suffix) {
@@ -88,10 +95,10 @@ bool Config::load(const std::string& configPath) {
             }
         };
 
-        warn(img.L_orig, "_L_orig");
-        warn(img.L_dec, "_L_dec");
-        warn(img.R_orig, "_R_orig");
-        warn(img.R_dec, "_R_dec");
+        warn(img.L_orig, "_L");
+        warn(img.L_dec, "_L");
+        warn(img.R_orig, "_R");
+        warn(img.R_dec, "_R");
 
         trials.push_back(img);
     }
@@ -99,16 +106,16 @@ bool Config::load(const std::string& configPath) {
     return true;
 }
 
-fs::path Config::findImage(const std::string& name, const std::string& suffix) const {
-    std::string stem = name + suffix; //e.g. "a_L_orig"
+fs::path Config::findImage(const std::string& name, const std::string& suffix, const fs::path imageDirectory) const {
+    std::string stem = name + suffix; // e.g. "image0_L"
 
     for (const auto& entry : fs::directory_iterator(imageDirectory)) {
         if (!entry.is_regular_file()) continue;
 
-        // Match on stem only — ignores extension, so .dds/.ppm/anything works
-        if (entry.path().stem().string() == stem)
+        std::string filename = entry.path().filename().string();
+        if (filename.rfind(stem, 0) == 0)  // starts with stem
             return entry.path();
     }
 
-    return {}; // not found
+    return {};
 }
